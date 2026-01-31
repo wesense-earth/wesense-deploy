@@ -116,10 +116,10 @@ services:
       # Mode: 'community' (local node, default) or 'public' (mqtt.meshtastic.org, hub operators only)
       - MESHTASTIC_MODE=${MESHTASTIC_MODE:-community}
       # MQTT input (community mode: local EMQX where Meshtastic node pushes)
-      - MQTT_BROKER=${LOCAL_MQTT_HOST:-emqx}
-      - MQTT_PORT=${LOCAL_MQTT_PORT:-1883}
-      - MQTT_USERNAME=${LOCAL_MQTT_USER:-}
-      - MQTT_PASSWORD=${LOCAL_MQTT_PASSWORD:-}
+      - MQTT_BROKER=${MQTT_HOST:-emqx}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - MQTT_USERNAME=${MQTT_USER:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
       # ClickHouse connection (optional, gracefully handles unavailable)
       - CLICKHOUSE_HOST=${CLICKHOUSE_HOST:-clickhouse}
       - CLICKHOUSE_PORT=${CLICKHOUSE_PORT:-8123}
@@ -127,10 +127,10 @@ services:
       - CLICKHOUSE_BATCH_SIZE=${CLICKHOUSE_BATCH_SIZE:-100}
       - CLICKHOUSE_FLUSH_INTERVAL=${CLICKHOUSE_FLUSH_INTERVAL:-10}
       # MQTT output for publishing decoded messages
-      - WESENSE_OUTPUT_BROKER=${LOCAL_MQTT_HOST:-emqx}
-      - WESENSE_OUTPUT_PORT=${LOCAL_MQTT_PORT:-1883}
-      - WESENSE_OUTPUT_USERNAME=${LOCAL_MQTT_USER:-}
-      - WESENSE_OUTPUT_PASSWORD=${LOCAL_MQTT_PASSWORD:-}
+      - WESENSE_OUTPUT_BROKER=${MQTT_HOST:-emqx}
+      - WESENSE_OUTPUT_PORT=${MQTT_PORT:-1883}
+      - WESENSE_OUTPUT_USERNAME=${MQTT_USER:-}
+      - WESENSE_OUTPUT_PASSWORD=${MQTT_PASSWORD:-}
       # Logging
       - DEBUG=${DEBUG:-false}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -162,10 +162,10 @@ services:
       - ingester-wesense-logs:/app/logs
     environment:
       # MQTT input (subscribe to sensor topics)
-      - MQTT_BROKER=${LOCAL_MQTT_HOST:-emqx}
-      - MQTT_PORT=${LOCAL_MQTT_PORT:-1883}
-      - MQTT_USERNAME=${LOCAL_MQTT_USER:-}
-      - MQTT_PASSWORD=${LOCAL_MQTT_PASSWORD:-}
+      - MQTT_BROKER=${MQTT_HOST:-emqx}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - MQTT_USERNAME=${MQTT_USER:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
       # ClickHouse connection (optional, gracefully handles unavailable)
       - CLICKHOUSE_HOST=${CLICKHOUSE_HOST:-clickhouse}
       - CLICKHOUSE_PORT=${CLICKHOUSE_PORT:-8123}
@@ -173,10 +173,10 @@ services:
       - CLICKHOUSE_BATCH_SIZE=${CLICKHOUSE_BATCH_SIZE:-100}
       - CLICKHOUSE_FLUSH_INTERVAL=${CLICKHOUSE_FLUSH_INTERVAL:-10}
       # MQTT output for decoded messages
-      - WESENSE_OUTPUT_BROKER=${LOCAL_MQTT_HOST:-emqx}
-      - WESENSE_OUTPUT_PORT=${LOCAL_MQTT_PORT:-1883}
-      - WESENSE_OUTPUT_USERNAME=${LOCAL_MQTT_USER:-}
-      - WESENSE_OUTPUT_PASSWORD=${LOCAL_MQTT_PASSWORD:-}
+      - WESENSE_OUTPUT_BROKER=${MQTT_HOST:-emqx}
+      - WESENSE_OUTPUT_PORT=${MQTT_PORT:-1883}
+      - WESENSE_OUTPUT_USERNAME=${MQTT_USER:-}
+      - WESENSE_OUTPUT_PASSWORD=${MQTT_PASSWORD:-}
       # TTN webhook (optional)
       - TTN_WEBHOOK_ENABLED=${TTN_WEBHOOK_ENABLED:-false}
       - TTN_WEBHOOK_PORT=${TTN_WEBHOOK_PORT:-5000}
@@ -222,8 +222,8 @@ services:
       - CLICKHOUSE_USER=${CLICKHOUSE_USER:-default}
       - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}
       # MQTT output for decoded messages
-      - LOCAL_MQTT_BROKER=${LOCAL_MQTT_HOST:-emqx}
-      - LOCAL_MQTT_PORT=${LOCAL_MQTT_PORT:-1883}
+      - LOCAL_MQTT_BROKER=${MQTT_HOST:-emqx}
+      - LOCAL_MQTT_PORT=${MQTT_PORT:-1883}
       # Options
       - DISABLE_CLICKHOUSE=${DISABLE_CLICKHOUSE:-false}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -258,9 +258,9 @@ services:
       - CLICKHOUSE_USERNAME=${CLICKHOUSE_USER:-default}
       - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}
       # MQTT for real-time updates (optional)
-      - MQTT_BROKER_URL=mqtt://${LOCAL_MQTT_HOST:-emqx}:${LOCAL_MQTT_PORT:-1883}
-      - MQTT_USERNAME=${LOCAL_MQTT_USER:-}
-      - MQTT_PASSWORD=${LOCAL_MQTT_PASSWORD:-}
+      - MQTT_BROKER_URL=mqtt://${MQTT_HOST:-emqx}:${MQTT_PORT:-1883}
+      - MQTT_USERNAME=${MQTT_USER:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
       - MQTT_TOPIC_FILTER=wesense/decoded/#
       # Server
       - PORT=3000
