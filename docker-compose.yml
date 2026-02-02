@@ -61,7 +61,7 @@ services:
   # docker-compose.override.yml or uncomment below.
   # ===========================================================================
   emqx:
-    image: emqx/emqx:5
+    image: emqx/emqx:5.8.9
     container_name: wesense-emqx
     profiles: ["hub", "station"]
     depends_on:
