@@ -125,6 +125,8 @@ services:
       - CLICKHOUSE_USER=${CLICKHOUSE_USER:-default}
       - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:?Set CLICKHOUSE_PASSWORD in .env}
       - TZ=${TZ:-Pacific/Auckland}
+    cap_add:
+      - SYS_NICE            # Suppresses "get_mempolicy: Operation not permitted" NUMA warnings
     ulimits:
       nproc: 65535
       nofile:
