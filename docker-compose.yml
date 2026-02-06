@@ -71,8 +71,8 @@ services:
       # - "${PORT_WS_TLS:-8084}:8084"       # WSS (TLS-encrypted WebSocket)
       # - "${PORT_DASHBOARD:-18083}:18083"   # EMQX admin dashboard
     volumes:
-      - ${DATA_DIR:-data}/emqx/data:/opt/emqx/data
-      - ${DATA_DIR:-data}/emqx/log:/opt/emqx/log
+      - ${DATA_DIR:-./data}/emqx/data:/opt/emqx/data
+      - ${DATA_DIR:-./data}/emqx/log:/opt/emqx/log
       - ./certs:/opt/emqx/etc/certs:ro
       - ./emqx/etc/emqx.conf:/opt/emqx/etc/emqx.conf:ro
     environment:
@@ -113,8 +113,8 @@ services:
     #   - "${PORT_CLICKHOUSE_HTTP:-8123}:8123"    # HTTP interface
     #   - "${PORT_CLICKHOUSE_NATIVE:-9000}:9000"  # Native TCP interface
     volumes:
-      - ${DATA_DIR:-data}/clickhouse/data:/var/lib/clickhouse
-      - ${DATA_DIR:-data}/clickhouse/logs:/var/log/clickhouse-server
+      - ${DATA_DIR:-./data}/clickhouse/data:/var/lib/clickhouse
+      - ${DATA_DIR:-./data}/clickhouse/logs:/var/log/clickhouse-server
       - ./clickhouse/init:/docker-entrypoint-initdb.d:ro
     environment:
       - CLICKHOUSE_DB=${CLICKHOUSE_DB:-wesense}
@@ -159,9 +159,9 @@ services:
         condition: service_healthy
         required: false
     volumes:
-      - ${DATA_DIR:-data}/ingester-meshtastic/cache:/app/cache
+      - ${DATA_DIR:-./data}/ingester-meshtastic/cache:/app/cache
       - ./ingester-meshtastic/config:/app/config:ro
-      - ${DATA_DIR:-data}/ingester-meshtastic/logs:/app/logs
+      - ${DATA_DIR:-./data}/ingester-meshtastic/logs:/app/logs
     environment:
       # Mode: 'community' (local node, default) or 'public' (mqtt.meshtastic.org, hub operators only)
       - MESHTASTIC_MODE=${MESHTASTIC_MODE:-community}
@@ -214,8 +214,8 @@ services:
         condition: service_healthy
         required: false
     volumes:
-      - ${DATA_DIR:-data}/ingester-wesense/cache:/app/cache
-      - ${DATA_DIR:-data}/ingester-wesense/logs:/app/logs
+      - ${DATA_DIR:-./data}/ingester-wesense/cache:/app/cache
+      - ${DATA_DIR:-./data}/ingester-wesense/logs:/app/logs
     environment:
       # MQTT input (subscribe to sensor topics)
       - MQTT_BROKER=${MQTT_HOST:-emqx}
@@ -276,7 +276,7 @@ services:
         required: false
     volumes:
       - ./ingester-homeassistant/config:/app/config:ro
-      - ${DATA_DIR:-data}/ingester-homeassistant/logs:/app/logs
+      - ${DATA_DIR:-./data}/ingester-homeassistant/logs:/app/logs
     environment:
       # Home Assistant connection
       - HA_URL=${HA_URL:-http://homeassistant.local:8123}
@@ -318,7 +318,7 @@ services:
     ports:
       - "${PORT_RESPIRO:-3000}:3000"
     volumes:
-      - ${DATA_DIR:-data}/respiro:/app/data
+      - ${DATA_DIR:-./data}/respiro:/app/data
     environment:
       # ClickHouse connection
       - CLICKHOUSE_HOST=${CLICKHOUSE_HOST:-clickhouse}
