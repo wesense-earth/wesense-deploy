@@ -87,6 +87,9 @@ secrets/
 emqx-data/
 emqx-log/
 
+# EMQX auth bootstrap (generated at runtime by init-auth.sh)
+emqx/etc/auth-bootstrap.csv
+
 # PostgreSQL - ignore everything except init scripts
 database/*
 !database/init/

@@ -24,26 +24,51 @@ services:
     image: busybox:latest
     container_name: wesense-config-check
     profiles: ["hub", "station", "contributor", "observer"]
+    environment:
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}
+      - EMQX_DASHBOARD_PASSWORD=${EMQX_DASHBOARD_PASSWORD:-}
+      - MQTT_USER=${MQTT_USER:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - COMPOSE_PROFILES=${COMPOSE_PROFILES:-}
     entrypoint: /bin/sh
     command:
       - -c
       - |
-        fail=0
-        for var in CLICKHOUSE_PASSWORD; do
-          eval val=\$$var
-          if [ "$$val" = "CHANGEME" ] || [ -z "$$val" ]; then
-            echo "ERROR: $$var is not set — change it in .env" >&2
-            fail=1
-          fi
-        done
-        if [ "$$fail" = "1" ]; then
-          echo "" >&2
-          echo "Set real passwords in .env before starting." >&2
+        ok=true
+
+        # ClickHouse password — required for station/observer profiles
+        case "$$COMPOSE_PROFILES" in
+          *station*|*observer*)
+            if [ -z "$$CLICKHOUSE_PASSWORD" ] || [ "$$CLICKHOUSE_PASSWORD" = "CHANGEME" ]; then
+              echo "ERROR: CLICKHOUSE_PASSWORD must be set to a real password in .env (not empty, not CHANGEME)"
+              ok=false
+            fi
+            ;;
+        esac
+
+        # EMQX dashboard password — required for hub/station profiles
+        case "$$COMPOSE_PROFILES" in
+          *hub*|*station*)
+            if [ -z "$$EMQX_DASHBOARD_PASSWORD" ] || [ "$$EMQX_DASHBOARD_PASSWORD" = "CHANGEME" ]; then
+              echo "ERROR: EMQX_DASHBOARD_PASSWORD must be set to a real password in .env (not empty, not CHANGEME)"
+              ok=false
+            fi
+            ;;
+        esac
+
+        # MQTT credentials — optional, but warn if partially set
+        if [ -n "$$MQTT_USER" ] && [ -z "$$MQTT_PASSWORD" ]; then
+          echo "WARNING: MQTT_USER is set but MQTT_PASSWORD is empty — MQTT auth will not be enabled"
+        fi
+        if [ -z "$$MQTT_USER" ] && [ -z "$$MQTT_PASSWORD" ]; then
+          echo "NOTE: MQTT_USER/MQTT_PASSWORD not set — EMQX will allow anonymous connections"
+        fi
+
+        if [ "$$ok" = "false" ]; then
+          echo "Fix the above errors in .env and try again."
           exit 1
         fi
-        echo "Config OK — all passwords set."
-    environment:
-      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+        echo "Config OK."
     networks: []
     restart: "no"
 
@@ -62,6 +87,8 @@ services:
     depends_on:
       config-check:
         condition: service_completed_successfully
+    entrypoint: /opt/emqx/scripts/init-auth.sh
+    command: ["/opt/emqx/bin/emqx", "foreground"]
     ports:
       # MQTT — sensors and devices connect here
       - "${PORT_MQTT:-1883}:1883"
@@ -75,7 +102,13 @@ services:
       - ${DATA_DIR:-./data}/emqx/log:/opt/emqx/log
       - ./certs:/opt/emqx/etc/certs:ro
       - ./emqx/etc/emqx.conf:/opt/emqx/etc/emqx.conf:ro
+      - ./emqx/scripts/init-auth.sh:/opt/emqx/scripts/init-auth.sh:ro
     environment:
+      # MQTT authentication (opt-in: set both to enable, leave empty for anonymous)
+      - MQTT_USER=${MQTT_USER:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      # Dashboard password (overrides default admin/public)
+      - EMQX_DASHBOARD__DEFAULT_PASSWORD=${EMQX_DASHBOARD_PASSWORD:-public}
       # TLS listeners (disabled by default, enable in .env with certificates)
       - EMQX_LISTENERS__SSL__DEFAULT__ENABLED=${TLS_MQTT_ENABLED:-false}
       - EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__CERTFILE=${TLS_CERTFILE:-/opt/emqx/etc/certs/fullchain.pem}
