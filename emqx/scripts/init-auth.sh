@@ -26,9 +26,12 @@ export HOME=/opt/emqx
 if [ -n "$MQTT_USER" ] && [ -n "$MQTT_PASSWORD" ]; then
     echo "init-auth: MQTT_USER and MQTT_PASSWORD are set — enabling authentication"
 
-    # Generate bootstrap CSV (username,password,is_superuser)
-    # EMQX hashes the plaintext password on import.
-    printf '%s,%s,true\n' "$MQTT_USER" "$MQTT_PASSWORD" > "$BOOTSTRAP_FILE"
+    # Generate bootstrap CSV (username,sha256_hash,is_superuser,salt)
+    # Random salt + SHA256 hash — each startup gets a unique salt so the
+    # hash in Mnesia is never the same twice, defeating rainbow tables.
+    SALT=$(head -c 16 /dev/urandom | od -A n -t x1 | tr -d ' \n')
+    PASS_HASH=$(printf '%s%s' "$MQTT_PASSWORD" "$SALT" | sha256sum | cut -d' ' -f1)
+    printf '%s,%s,true,%s\n' "$MQTT_USER" "$PASS_HASH" "$SALT" > "$BOOTSTRAP_FILE"
     chown "$PUID:$PGID" "$BOOTSTRAP_FILE"
     chmod 600 "$BOOTSTRAP_FILE"
 
@@ -36,10 +39,9 @@ if [ -n "$MQTT_USER" ] && [ -n "$MQTT_PASSWORD" ]; then
     export EMQX_AUTHENTICATION__1__MECHANISM="password_based"
     export EMQX_AUTHENTICATION__1__BACKEND="built_in_database"
     export EMQX_AUTHENTICATION__1__USER_ID_TYPE="username"
-    export EMQX_AUTHENTICATION__1__PASSWORD_HASH_ALGORITHM__NAME="bcrypt"
-    export EMQX_AUTHENTICATION__1__PASSWORD_HASH_ALGORITHM__SALT_ROUNDS="10"
+    export EMQX_AUTHENTICATION__1__PASSWORD_HASH_ALGORITHM__NAME="sha256"
+    export EMQX_AUTHENTICATION__1__PASSWORD_HASH_ALGORITHM__SALT_POSITION="suffix"
     export EMQX_AUTHENTICATION__1__BOOTSTRAP_FILE="$BOOTSTRAP_FILE"
-    export EMQX_AUTHENTICATION__1__BOOTSTRAP_TYPE="plain"
 
     # Background cleanup: wait for EMQX to become healthy, then remove the CSV
     # so plaintext credentials don't persist on disk. The subshell survives
