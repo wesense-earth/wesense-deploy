@@ -26,12 +26,17 @@ export HOME=/opt/emqx
 if [ -n "$MQTT_USER" ] && [ -n "$MQTT_PASSWORD" ]; then
     echo "init-auth: MQTT_USER and MQTT_PASSWORD are set — enabling authentication"
 
-    # Generate bootstrap CSV (username,password_hash,salt,is_superuser)
+    # Generate bootstrap CSV with required header + data line.
+    # EMQX parses the first line as column headers (map keys), so the header
+    # MUST be present — without it the data line is treated as the header
+    # and zero users are imported.
+    # Column order: user_id,password_hash,salt,is_superuser
     # Random salt + SHA256 hash — each startup gets a unique salt so the
     # hash in Mnesia is never the same twice, defeating rainbow tables.
     SALT=$(head -c 16 /dev/urandom | od -A n -t x1 | tr -d ' \n')
     PASS_HASH=$(printf '%s%s' "$MQTT_PASSWORD" "$SALT" | sha256sum | cut -d' ' -f1)
-    printf '%s,%s,%s,true\n' "$MQTT_USER" "$PASS_HASH" "$SALT" > "$BOOTSTRAP_FILE"
+    printf 'user_id,password_hash,salt,is_superuser\n%s,%s,%s,true\n' \
+        "$MQTT_USER" "$PASS_HASH" "$SALT" > "$BOOTSTRAP_FILE"
     chown "$PUID:$PGID" "$BOOTSTRAP_FILE"
     chmod 600 "$BOOTSTRAP_FILE"
 
