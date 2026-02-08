@@ -155,9 +155,11 @@ services:
     # ports:
     #   - "${PORT_CLICKHOUSE_HTTP:-8123}:8123"    # HTTP interface
     #   - "${PORT_CLICKHOUSE_NATIVE:-9000}:9000"  # Native TCP interface
+    # Set CLICKHOUSE_DATA_DIR in .env to store sensor data on a separate drive (e.g., HDD)
+    # Defaults to DATA_DIR/clickhouse alongside other services
     volumes:
-      - ${DATA_DIR:-./data}/clickhouse/data:/var/lib/clickhouse
-      - ${DATA_DIR:-./data}/clickhouse/logs:/var/log/clickhouse-server
+      - ${CLICKHOUSE_DATA_DIR:-${DATA_DIR:-./data}/clickhouse}/data:/var/lib/clickhouse
+      - ${CLICKHOUSE_DATA_DIR:-${DATA_DIR:-./data}/clickhouse}/logs:/var/log/clickhouse-server
       - ./clickhouse/init:/docker-entrypoint-initdb.d:ro
     environment:
       - CLICKHOUSE_DB=${CLICKHOUSE_DB:-wesense}
