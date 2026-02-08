@@ -14,6 +14,12 @@ PGID="${PGID:-1000}"
 BOOTSTRAP_FILE="/opt/emqx/etc/auth-bootstrap.csv"
 
 # --- Fix ownership ---
+# Pre-create data subdirectories that EMQX expects to write to on startup.
+# On fresh deployments, Docker creates the bind mount root as root:root.
+# Without this, the first start can fail with "permission denied" when EMQX
+# tries to write config snapshots before the directories exist.
+mkdir -p /opt/emqx/data/configs /opt/emqx/log
+
 # Ensure the entire EMQX tree is owned by PUID:PGID so the process can
 # read binaries/configs and write to data/log after we drop privileges.
 chown -R "$PUID:$PGID" /opt/emqx 2>/dev/null || true
@@ -39,11 +45,6 @@ if [ -n "$MQTT_USER" ] && [ -n "$MQTT_PASSWORD" ]; then
         "$MQTT_USER" "$PASS_HASH" "$SALT" > "$BOOTSTRAP_FILE"
     chown "$PUID:$PGID" "$BOOTSTRAP_FILE"
     chmod 600 "$BOOTSTRAP_FILE"
-
-    # Debug: show generated CSV structure (hash/salt are not secrets)
-    echo "init-auth: bootstrap CSV content:"
-    cat "$BOOTSTRAP_FILE"
-    echo "init-auth: salt length=$(printf '%s' "$SALT" | wc -c), hash length=$(printf '%s' "$PASS_HASH" | wc -c)"
 
     # Configure EMQX built-in DB authenticator via environment variable overrides
     export EMQX_AUTHENTICATION__1__MECHANISM="password_based"
