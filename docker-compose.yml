@@ -210,12 +210,9 @@ services:
         required: false
     volumes:
       - ${DATA_DIR:-./data}/ingester-meshtastic/cache:/app/cache
-      - ./ingester-meshtastic/config:/app/config:ro
       - ${DATA_DIR:-./data}/ingester-meshtastic/logs:/app/logs
     environment:
-      # Mode: 'community' (local node, default) or 'public' (mqtt.meshtastic.org, hub operators only)
-      - MESHTASTIC_MODE=${MESHTASTIC_MODE:-community}
-      # MQTT input (community mode: local EMQX where Meshtastic node pushes)
+      # MQTT input (local EMQX where Meshtastic node pushes)
       - MQTT_BROKER=${MQTT_HOST:-emqx}
       - MQTT_PORT=${MQTT_PORT:-1883}
       - MQTT_USERNAME=${MQTT_USER}
