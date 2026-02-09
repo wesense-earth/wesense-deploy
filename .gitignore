@@ -94,5 +94,9 @@ emqx/etc/auth-bootstrap.csv
 database/*
 !database/init/
 
+# Migration (one-time, not needed in repo)
+migration-backup/
+scripts/migrate-from-docker-run.sh
+
 # Docker overrides
 docker-compose.override.yml

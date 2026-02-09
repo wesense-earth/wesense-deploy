@@ -1,7 +1,7 @@
 #!/bin/bash
-# migrate-from-docker-run.sh — Migrate ClickHouse data from old docker-run setup to new docker-compose
+# migrate-from-docker-run.sh — Migrate from old docker-run setup to new docker-compose
 #
-# Exports data from the old ClickHouse instance, then imports into the new one.
+# Migrates ClickHouse data and Meshtastic ingester caches.
 # Handles the database rename: sensormap → wesense_respiro
 #
 # Usage:
@@ -18,6 +18,10 @@ set -euo pipefail
 
 BACKUP_DIR="${BACKUP_DIR:-./migration-backup}"
 OLD_CH_URL="${OLD_CH_URL:-http://localhost:8123}"
+
+# Old Meshtastic ingester cache paths (from docker-run setup)
+OLD_CACHE_COMMUNITY="${OLD_CACHE_COMMUNITY:-/mnt/ssd1pool/docker2/wesense-ingester-meshtastic-community/cache}"
+OLD_CACHE_DOWNLINK="${OLD_CACHE_DOWNLINK:-/mnt/ssd1pool/docker2/wesense-ingester-meshtastic/cache}"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -227,9 +231,76 @@ do_import() {
     fi
 
     echo ""
-    info "Import complete!"
+    info "ClickHouse import complete!"
+
+    # -----------------------------------------------------------------------
+    # Migrate Meshtastic ingester caches
+    # -----------------------------------------------------------------------
     echo ""
-    echo "Verify with:"
+    info "Meshtastic ingester cache migration"
+    echo ""
+
+    # Read DATA_DIR from .env (default: ./data)
+    local data_dir=""
+    if [ -f .env ]; then
+        data_dir=$(grep -E '^DATA_DIR=' .env | cut -d= -f2 | tr -d "'\"" || true)
+    fi
+    data_dir="${data_dir:-./data}"
+
+    # --- Community cache → main docker-compose ingester ---
+    local new_community_cache="${data_dir}/ingester-meshtastic/cache"
+
+    echo "Community ingester cache:"
+    echo "  From: ${OLD_CACHE_COMMUNITY}"
+    echo "  To:   ${new_community_cache}"
+
+    if [ -d "$OLD_CACHE_COMMUNITY" ]; then
+        local file_count
+        file_count=$(ls -1 "$OLD_CACHE_COMMUNITY" 2>/dev/null | wc -l | tr -d ' ')
+        if [ "$file_count" -gt 0 ]; then
+            mkdir -p "$new_community_cache"
+            cp -v "$OLD_CACHE_COMMUNITY"/* "$new_community_cache"/
+            info "  → Copied ${file_count} cache files"
+        else
+            info "  → Source directory empty, skipping"
+        fi
+    else
+        info "  → Source not found (${OLD_CACHE_COMMUNITY}), skipping"
+        echo "    Set OLD_CACHE_COMMUNITY=/path/to/cache to override"
+    fi
+
+    # --- Downlink cache → separate downlink compose ---
+    echo ""
+    echo "Downlink ingester cache:"
+    echo "  From: ${OLD_CACHE_DOWNLINK}"
+
+    if [ -d "$OLD_CACHE_DOWNLINK" ]; then
+        local file_count
+        file_count=$(ls -1 "$OLD_CACHE_DOWNLINK" 2>/dev/null | wc -l | tr -d ' ')
+        if [ "$file_count" -gt 0 ]; then
+            local downlink_cache=""
+            read -rp "  Downlink compose data/cache path (leave empty to skip): " downlink_cache
+
+            if [ -n "$downlink_cache" ]; then
+                mkdir -p "$downlink_cache"
+                cp -v "$OLD_CACHE_DOWNLINK"/* "$downlink_cache"/
+                info "  → Copied ${file_count} cache files"
+            else
+                info "  → Skipped (copy manually later)"
+                echo "    cp -r ${OLD_CACHE_DOWNLINK}/* /path/to/wesense-ingester-meshtastic-downlink/data/cache/"
+            fi
+        else
+            info "  → Source directory empty, skipping"
+        fi
+    else
+        info "  → Source not found (${OLD_CACHE_DOWNLINK}), skipping"
+        echo "    Set OLD_CACHE_DOWNLINK=/path/to/cache to override"
+    fi
+
+    echo ""
+    info "Migration complete!"
+    echo ""
+    echo "Verify ClickHouse:"
     echo "  docker compose exec clickhouse clickhouse-client --user ${user} --password '***' --query 'SELECT count() FROM wesense.sensor_readings'"
     echo ""
     echo "You can delete the backup files when satisfied:"
@@ -253,8 +324,10 @@ case "${1:-}" in
         echo "  import  — Restore into new docker compose ClickHouse (run after stack is up)"
         echo ""
         echo "Environment variables:"
-        echo "  BACKUP_DIR     Backup directory (default: ./migration-backup)"
-        echo "  OLD_CH_URL     Old ClickHouse HTTP URL (default: http://localhost:8123)"
+        echo "  BACKUP_DIR           Backup directory (default: ./migration-backup)"
+        echo "  OLD_CH_URL           Old ClickHouse HTTP URL (default: http://localhost:8123)"
+        echo "  OLD_CACHE_COMMUNITY  Old community ingester cache (default: /mnt/ssd1pool/docker2/wesense-ingester-meshtastic-community/cache)"
+        echo "  OLD_CACHE_DOWNLINK   Old downlink ingester cache (default: /mnt/ssd1pool/docker2/wesense-ingester-meshtastic/cache)"
         exit 1
         ;;
 esac
