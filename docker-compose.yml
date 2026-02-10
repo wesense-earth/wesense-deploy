@@ -460,6 +460,46 @@ services:
       - wesense-net
 
   # ===========================================================================
+  # Deployment Classifier
+  # Profiles: station
+  # Analyses sensor behaviour (variance, weather correlation, temp range) to
+  # classify devices as indoor/outdoor/device/mobile etc. Runs on a cron
+  # schedule (default: every 12 hours). Uses Open-Meteo API for weather data.
+  # ===========================================================================
+  deployment-classifier:
+    image: ${CLASSIFIER_IMAGE:-ghcr.io/wesense-earth/wesense-deployment-classifier:latest}
+    container_name: wesense-deployment-classifier
+    profiles: ["station"]
+    depends_on:
+      config-check:
+        condition: service_completed_successfully
+      clickhouse:
+        condition: service_healthy
+    volumes:
+      - ${DATA_DIR:-./data}/deployment-classifier/reports:/app/reports
+      - ${DATA_DIR:-./data}/deployment-classifier/logs:/app/logs
+    environment:
+      # ClickHouse connection (includes protocol)
+      - CLICKHOUSE_HOST=http://${CLICKHOUSE_HOST:-clickhouse}:${CLICKHOUSE_PORT:-8123}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-wesense}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DB:-wesense}
+      # Classifier settings
+      - CLASSIFIER_MODE=scheduler
+      - CLASSIFIER_SCHEDULE=${CLASSIFIER_SCHEDULE:-0 */12 * * *}
+      - RUN_ON_STARTUP=${CLASSIFIER_RUN_ON_STARTUP:-true}
+      - DRY_RUN=${CLASSIFIER_DRY_RUN:-false}
+      - TZ=${TZ:-Pacific/Auckland}
+    restart: unless-stopped
+    networks:
+      - wesense-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ===========================================================================
   # IPFS - Distributed Storage (future: guardian, researcher profiles)
   # ===========================================================================
   # ipfs:
