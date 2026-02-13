@@ -32,6 +32,8 @@ services:
       - MQTT_USER=${MQTT_USER:-}
       - MQTT_PASSWORD=${MQTT_PASSWORD:-}
       - COMPOSE_PROFILES=${COMPOSE_PROFILES:-}
+      - ZENOH_ENABLED=${ZENOH_ENABLED:-true}
+      - ZENOH_ROUTERS=${ZENOH_ROUTERS:-}
     entrypoint: /bin/sh
     command:
       - -c
@@ -68,6 +70,11 @@ services:
         fi
         if [ -z "$$MQTT_USER" ] && [ -z "$$MQTT_PASSWORD" ]; then
           echo "NOTE: MQTT_USER/MQTT_PASSWORD not set — EMQX will allow anonymous connections"
+        fi
+
+        # Zenoh — warn if enabled but no routers configured
+        if [ "$$ZENOH_ENABLED" = "true" ] && [ -z "$$ZENOH_ROUTERS" ]; then
+          echo "WARNING: ZENOH_ENABLED=true but ZENOH_ROUTERS is empty — Zenoh publishing will fail"
         fi
 
         if [ "$$ok" = "false" ]; then
@@ -189,6 +196,33 @@ services:
       - wesense-net
 
   # ===========================================================================
+  # Zenoh Router — P2P data distribution
+  # Profiles: station
+  # Provides a local Zenoh router for ingesters to publish signed readings.
+  # Contributors connect to a remote router instead.
+  # ===========================================================================
+  zenohd:
+    image: eclipse/zenoh:1.7.2
+    container_name: wesense-zenohd
+    profiles: ["station"]
+    depends_on:
+      config-check:
+        condition: service_completed_successfully
+    ports:
+      - "${PORT_ZENOH:-7447}:7447"
+    volumes:
+      - ./zenoh/zenohd.json5:/zenoh.json5:ro
+    command: ["--config", "/zenoh.json5"]
+    restart: unless-stopped
+    networks:
+      - wesense-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ===========================================================================
   # Meshtastic Ingester (Unified: public + community)
   # Profiles: contributor, station
   # Community mode (default): receives from a local Meshtastic node via EMQX
@@ -209,9 +243,13 @@ services:
       clickhouse:
         condition: service_healthy
         required: false
+      zenohd:
+        condition: service_started
+        required: false
     volumes:
       - ${DATA_DIR:-./data}/ingester-meshtastic/cache:/app/cache
       - ${DATA_DIR:-./data}/ingester-meshtastic/logs:/app/logs
+      - ${DATA_DIR:-./data}/ingester-meshtastic/keys:/app/data/keys
     environment:
       # MQTT input (local EMQX where Meshtastic node pushes)
       - MQTT_BROKER=${MQTT_HOST:-emqx}
@@ -231,6 +269,12 @@ services:
       - WESENSE_OUTPUT_PORT=${MQTT_PORT:-1883}
       - WESENSE_OUTPUT_USERNAME=${MQTT_USER}
       - WESENSE_OUTPUT_PASSWORD=${MQTT_PASSWORD}
+      # Zenoh P2P (optional)
+      - ZENOH_ENABLED=${ZENOH_ENABLED:-true}
+      - ZENOH_MODE=${ZENOH_MODE:-client}
+      - ZENOH_ROUTERS=${ZENOH_ROUTERS:-tcp/zenohd:7447}
+      - ZENOH_KEY_PREFIX=${ZENOH_KEY_PREFIX:-wesense/v2/live}
+      - ZENOH_KEY_DIR=/app/data/keys
       # Logging
       - DEBUG=${DEBUG:-false}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -270,10 +314,14 @@ services:
       clickhouse:
         condition: service_healthy
         required: false
+      zenohd:
+        condition: service_started
+        required: false
     volumes:
       - ${DATA_DIR:-./data}/ingester-meshtastic-downlink/cache:/app/cache
       - ${DATA_DIR:-./data}/ingester-meshtastic-downlink/logs:/app/logs
       - ./ingester-meshtastic-downlink/config:/app/config:ro
+      - ${DATA_DIR:-./data}/ingester-meshtastic-downlink/keys:/app/data/keys
     environment:
       - MESHTASTIC_MODE=downlink
       # ClickHouse connection
@@ -289,6 +337,12 @@ services:
       - WESENSE_OUTPUT_PORT=${MQTT_PORT:-1883}
       - WESENSE_OUTPUT_USERNAME=${MQTT_USER}
       - WESENSE_OUTPUT_PASSWORD=${MQTT_PASSWORD}
+      # Zenoh P2P (optional)
+      - ZENOH_ENABLED=${ZENOH_ENABLED:-true}
+      - ZENOH_MODE=${ZENOH_MODE:-client}
+      - ZENOH_ROUTERS=${ZENOH_ROUTERS:-tcp/zenohd:7447}
+      - ZENOH_KEY_PREFIX=${ZENOH_KEY_PREFIX:-wesense/v2/live}
+      - ZENOH_KEY_DIR=/app/data/keys
       # Logging
       - DEBUG=${DEBUG:-false}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -321,9 +375,13 @@ services:
       clickhouse:
         condition: service_healthy
         required: false
+      zenohd:
+        condition: service_started
+        required: false
     volumes:
       - ${DATA_DIR:-./data}/ingester-wesense/cache:/app/cache
       - ${DATA_DIR:-./data}/ingester-wesense/logs:/app/logs
+      - ${DATA_DIR:-./data}/ingester-wesense/keys:/app/data/keys
     environment:
       # MQTT input (subscribe to sensor topics)
       - MQTT_BROKER=${MQTT_HOST:-emqx}
@@ -343,6 +401,12 @@ services:
       - WESENSE_OUTPUT_PORT=${MQTT_PORT:-1883}
       - WESENSE_OUTPUT_USERNAME=${MQTT_USER}
       - WESENSE_OUTPUT_PASSWORD=${MQTT_PASSWORD}
+      # Zenoh P2P (optional)
+      - ZENOH_ENABLED=${ZENOH_ENABLED:-true}
+      - ZENOH_MODE=${ZENOH_MODE:-client}
+      - ZENOH_ROUTERS=${ZENOH_ROUTERS:-tcp/zenohd:7447}
+      - ZENOH_KEY_PREFIX=${ZENOH_KEY_PREFIX:-wesense/v2/live}
+      - ZENOH_KEY_DIR=/app/data/keys
       # TTN webhook (optional)
       - TTN_WEBHOOK_ENABLED=${TTN_WEBHOOK_ENABLED:-false}
       - TTN_WEBHOOK_PORT=${TTN_WEBHOOK_PORT:-5000}

@@ -46,7 +46,10 @@ CREATE TABLE IF NOT EXISTS wesense.sensor_readings
     `node_name` Nullable(String),
     `deployment_type_source` LowCardinality(String) DEFAULT 'unknown',
     `node_info` Nullable(String),
-    `node_info_url` Nullable(String)
+    `node_info_url` Nullable(String),
+    `signature` String DEFAULT '' COMMENT 'Ed25519 signature (hex)',
+    `ingester_id` LowCardinality(String) DEFAULT '' COMMENT 'Signing ingester ID (wsi_xxxxxxxx)',
+    `key_version` UInt32 DEFAULT 0 COMMENT 'Signing key version'
 )
 ENGINE = ReplacingMergeTree(timestamp)
 PARTITION BY toYYYYMM(timestamp)
