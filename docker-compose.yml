@@ -246,6 +246,9 @@ services:
       zenohd:
         condition: service_started
         required: false
+      wesense-orbitdb:
+        condition: service_started
+        required: false
     volumes:
       - ${DATA_DIR:-./data}/ingester-meshtastic/cache:/app/cache
       - ${DATA_DIR:-./data}/ingester-meshtastic/logs:/app/logs
@@ -275,6 +278,10 @@ services:
       - ZENOH_ROUTERS=${ZENOH_ROUTERS:-tcp/zenohd:7447}
       - ZENOH_KEY_PREFIX=${ZENOH_KEY_PREFIX:-wesense/v2/live}
       - ZENOH_KEY_DIR=/app/data/keys
+      # OrbitDB registry (optional — automated trust sync)
+      - ORBITDB_ENABLED=${ORBITDB_ENABLED:-false}
+      - ORBITDB_URL=${ORBITDB_URL:-http://wesense-orbitdb:5200}
+      - ORBITDB_SYNC_INTERVAL=${ORBITDB_SYNC_INTERVAL:-3600}
       # Logging
       - DEBUG=${DEBUG:-false}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -378,6 +385,9 @@ services:
       zenohd:
         condition: service_started
         required: false
+      wesense-orbitdb:
+        condition: service_started
+        required: false
     volumes:
       - ${DATA_DIR:-./data}/ingester-wesense/cache:/app/cache
       - ${DATA_DIR:-./data}/ingester-wesense/logs:/app/logs
@@ -407,6 +417,10 @@ services:
       - ZENOH_ROUTERS=${ZENOH_ROUTERS:-tcp/zenohd:7447}
       - ZENOH_KEY_PREFIX=${ZENOH_KEY_PREFIX:-wesense/v2/live}
       - ZENOH_KEY_DIR=/app/data/keys
+      # OrbitDB registry (optional — automated trust sync)
+      - ORBITDB_ENABLED=${ORBITDB_ENABLED:-false}
+      - ORBITDB_URL=${ORBITDB_URL:-http://wesense-orbitdb:5200}
+      - ORBITDB_SYNC_INTERVAL=${ORBITDB_SYNC_INTERVAL:-3600}
       # TTN webhook (optional)
       - TTN_WEBHOOK_ENABLED=${TTN_WEBHOOK_ENABLED:-false}
       - TTN_WEBHOOK_PORT=${TTN_WEBHOOK_PORT:-5000}
@@ -569,31 +583,70 @@ services:
         max-file: "5"
 
   # ===========================================================================
+  # OrbitDB — Distributed Node Registry & Trust Sync
+  # Profiles: station, observer
+  # Helia (IPFS) + OrbitDB for automated peer discovery and trust list
+  # replication. Port 4002 exposed for libp2p peer connections between stations.
+  # HTTP API (5200) is internal to Docker network only.
+  # ===========================================================================
+  wesense-orbitdb:
+    image: ${ORBITDB_IMAGE:-ghcr.io/wesense-earth/wesense-orbitdb:latest}
+    container_name: wesense-orbitdb
+    profiles: ["station", "observer"]
+    volumes:
+      - ${DATA_DIR:-./data}/orbitdb:/app/data
+    ports:
+      - "${PORT_LIBP2P:-4002}:4002"
+    environment:
+      - PORT=5200
+      - DATA_DIR=/app/data
+      - ORBITDB_BOOTSTRAP_PEERS=${ORBITDB_BOOTSTRAP_PEERS:-}
+      - TZ=${TZ:-Pacific/Auckland}
+    restart: unless-stopped
+    networks:
+      - wesense-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ===========================================================================
   # Zenoh Bridge — P2P Data Receiver
-  # Profile: observer
-  # Subscribes to a remote station's Zenoh router, verifies signatures against
-  # a local trust list, and writes incoming readings to the observer's ClickHouse.
-  # Does NOT run a local zenohd — connects as client to ZENOH_ROUTERS.
+  # Profiles: station, observer
+  # Subscribes to Zenoh, verifies signatures against a trust list, and writes
+  # incoming readings to the local ClickHouse. On station profile this enables
+  # receiving data from other stations; on observer it's the sole data source.
   # ===========================================================================
   zenoh-bridge:
     image: ${ZENOH_BRIDGE_IMAGE:-ghcr.io/wesense-earth/wesense-zenoh-bridge:latest}
     container_name: wesense-zenoh-bridge
-    profiles: ["observer"]
+    profiles: ["station", "observer"]
     depends_on:
       config-check:
         condition: service_completed_successfully
       clickhouse:
         condition: service_healthy
+      zenohd:
+        condition: service_started
+        required: false
+      wesense-orbitdb:
+        condition: service_started
+        required: false
     volumes:
       - ${DATA_DIR:-./data}/zenoh-bridge/data:/app/data
       - ${DATA_DIR:-./data}/zenoh-bridge/logs:/app/logs
+      # Local ingester keys (read-only) — used for self-echo filtering
+      - ${DATA_DIR:-./data}/ingester-wesense/keys:/app/local-keys/wesense:ro
+      - ${DATA_DIR:-./data}/ingester-meshtastic/keys:/app/local-keys/meshtastic:ro
+      - ${DATA_DIR:-./data}/ingester-meshtastic-downlink/keys:/app/local-keys/meshtastic-downlink:ro
     environment:
-      # Zenoh connection (client mode, connects to remote station router)
+      # Zenoh connection (client mode — station: local zenohd, observer: remote router)
       - ZENOH_ENABLED=true
       - ZENOH_MODE=${ZENOH_MODE:-client}
-      - ZENOH_ROUTERS=${ZENOH_ROUTERS:?Set ZENOH_ROUTERS to remote station address}
+      - ZENOH_ROUTERS=${ZENOH_ROUTERS:-tcp/zenohd:7447}
       - ZENOH_SUBSCRIBE_KEY=${ZENOH_SUBSCRIBE_KEY:-wesense/v2/live/**}
-      # ClickHouse connection (local observer database)
+      # ClickHouse connection (local database)
       - CLICKHOUSE_HOST=${CLICKHOUSE_HOST:-clickhouse}
       - CLICKHOUSE_PORT=${CLICKHOUSE_PORT:-8123}
       - CLICKHOUSE_DATABASE=${CLICKHOUSE_DB:-wesense}
@@ -603,6 +656,10 @@ services:
       - CLICKHOUSE_FLUSH_INTERVAL=${CLICKHOUSE_FLUSH_INTERVAL:-10}
       # Trust store
       - TRUST_FILE=/app/data/trust_list.json
+      # OrbitDB registry (optional — automated trust sync, observer mode)
+      - ORBITDB_ENABLED=${ORBITDB_ENABLED:-false}
+      - ORBITDB_URL=${ORBITDB_URL:-http://wesense-orbitdb:5200}
+      - ORBITDB_SYNC_INTERVAL=${ORBITDB_SYNC_INTERVAL:-3600}
       # Logging
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - TZ=${TZ:-Pacific/Auckland}
