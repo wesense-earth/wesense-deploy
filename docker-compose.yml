@@ -508,6 +508,8 @@ services:
       # Server
       - PORT=3000
       - HOST=0.0.0.0
+      # Zenoh P2P API (optional — enables /api/p2p/* endpoints)
+      - ZENOH_API_URL=${ZENOH_API_URL:-http://zenoh-api:5100}
       # Map centre — auto-detects from sensor data by default.
       # Uncomment to override (values from .env if set).
       # - MAP_CENTER_LAT=${MAP_CENTER_LAT:--36.848}
@@ -519,6 +521,9 @@ services:
         condition: service_completed_successfully
       clickhouse:
         condition: service_healthy
+      zenoh-api:
+        condition: service_started
+        required: false
     restart: unless-stopped
     networks:
       - wesense-net
@@ -553,6 +558,90 @@ services:
       - CLASSIFIER_SCHEDULE=${CLASSIFIER_SCHEDULE:-0 */12 * * *}
       - RUN_ON_STARTUP=${CLASSIFIER_RUN_ON_STARTUP:-true}
       - DRY_RUN=${CLASSIFIER_DRY_RUN:-false}
+      - TZ=${TZ:-Pacific/Auckland}
+    restart: unless-stopped
+    networks:
+      - wesense-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ===========================================================================
+  # Zenoh Bridge — P2P Data Receiver
+  # Profile: observer
+  # Subscribes to a remote station's Zenoh router, verifies signatures against
+  # a local trust list, and writes incoming readings to the observer's ClickHouse.
+  # Does NOT run a local zenohd — connects as client to ZENOH_ROUTERS.
+  # ===========================================================================
+  zenoh-bridge:
+    image: ${ZENOH_BRIDGE_IMAGE:-ghcr.io/wesense-earth/wesense-zenoh-bridge:latest}
+    container_name: wesense-zenoh-bridge
+    profiles: ["observer"]
+    depends_on:
+      config-check:
+        condition: service_completed_successfully
+      clickhouse:
+        condition: service_healthy
+    volumes:
+      - ${DATA_DIR:-./data}/zenoh-bridge/data:/app/data
+      - ${DATA_DIR:-./data}/zenoh-bridge/logs:/app/logs
+    environment:
+      # Zenoh connection (client mode, connects to remote station router)
+      - ZENOH_ENABLED=true
+      - ZENOH_MODE=${ZENOH_MODE:-client}
+      - ZENOH_ROUTERS=${ZENOH_ROUTERS:?Set ZENOH_ROUTERS to remote station address}
+      - ZENOH_SUBSCRIBE_KEY=${ZENOH_SUBSCRIBE_KEY:-wesense/v2/live/**}
+      # ClickHouse connection (local observer database)
+      - CLICKHOUSE_HOST=${CLICKHOUSE_HOST:-clickhouse}
+      - CLICKHOUSE_PORT=${CLICKHOUSE_PORT:-8123}
+      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DB:-wesense}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-wesense}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+      - CLICKHOUSE_BATCH_SIZE=${CLICKHOUSE_BATCH_SIZE:-100}
+      - CLICKHOUSE_FLUSH_INTERVAL=${CLICKHOUSE_FLUSH_INTERVAL:-10}
+      # Trust store
+      - TRUST_FILE=/app/data/trust_list.json
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - TZ=${TZ:-Pacific/Auckland}
+    restart: unless-stopped
+    networks:
+      - wesense-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ===========================================================================
+  # Zenoh API — HTTP Frontend for Distributed Queries
+  # Profiles: station, observer
+  # Translates REST requests into Zenoh distributed queries.
+  # Respiro calls these endpoints to show P2P data.
+  # ===========================================================================
+  zenoh-api:
+    image: ${ZENOH_API_IMAGE:-ghcr.io/wesense-earth/wesense-zenoh-api:latest}
+    container_name: wesense-zenoh-api
+    profiles: ["station", "observer"]
+    depends_on:
+      config-check:
+        condition: service_completed_successfully
+      zenohd:
+        condition: service_started
+        required: false
+    environment:
+      # Zenoh connection
+      - ZENOH_ENABLED=true
+      - ZENOH_MODE=${ZENOH_MODE:-client}
+      - ZENOH_ROUTERS=${ZENOH_ROUTERS:-tcp/zenohd:7447}
+      # Query settings
+      - ZENOH_QUERY_TIMEOUT=${ZENOH_QUERY_TIMEOUT:-5.0}
+      - ZENOH_QUERY_KEY=${ZENOH_QUERY_KEY:-wesense/v2/live/**}
+      - FLASK_PORT=5100
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - TZ=${TZ:-Pacific/Auckland}
     restart: unless-stopped
     networks:
