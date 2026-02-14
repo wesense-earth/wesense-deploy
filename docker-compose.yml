@@ -278,8 +278,8 @@ services:
       - ZENOH_ROUTERS=${ZENOH_ROUTERS:-tcp/zenohd:7447}
       - ZENOH_KEY_PREFIX=${ZENOH_KEY_PREFIX:-wesense/v2/live}
       - ZENOH_KEY_DIR=/app/data/keys
-      # OrbitDB registry (optional — automated trust sync)
-      - ORBITDB_ENABLED=${ORBITDB_ENABLED:-false}
+      # OrbitDB registry
+      - ORBITDB_ENABLED=${ORBITDB_ENABLED:-true}
       - ORBITDB_URL=${ORBITDB_URL:-http://wesense-orbitdb:5200}
       - ORBITDB_SYNC_INTERVAL=${ORBITDB_SYNC_INTERVAL:-3600}
       # Logging
@@ -417,8 +417,8 @@ services:
       - ZENOH_ROUTERS=${ZENOH_ROUTERS:-tcp/zenohd:7447}
       - ZENOH_KEY_PREFIX=${ZENOH_KEY_PREFIX:-wesense/v2/live}
       - ZENOH_KEY_DIR=/app/data/keys
-      # OrbitDB registry (optional — automated trust sync)
-      - ORBITDB_ENABLED=${ORBITDB_ENABLED:-false}
+      # OrbitDB registry
+      - ORBITDB_ENABLED=${ORBITDB_ENABLED:-true}
       - ORBITDB_URL=${ORBITDB_URL:-http://wesense-orbitdb:5200}
       - ORBITDB_SYNC_INTERVAL=${ORBITDB_SYNC_INTERVAL:-3600}
       # TTN webhook (optional)
@@ -656,8 +656,8 @@ services:
       - CLICKHOUSE_FLUSH_INTERVAL=${CLICKHOUSE_FLUSH_INTERVAL:-10}
       # Trust store
       - TRUST_FILE=/app/data/trust_list.json
-      # OrbitDB registry (optional — automated trust sync, observer mode)
-      - ORBITDB_ENABLED=${ORBITDB_ENABLED:-false}
+      # OrbitDB registry
+      - ORBITDB_ENABLED=${ORBITDB_ENABLED:-true}
       - ORBITDB_URL=${ORBITDB_URL:-http://wesense-orbitdb:5200}
       - ORBITDB_SYNC_INTERVAL=${ORBITDB_SYNC_INTERVAL:-3600}
       # Logging
