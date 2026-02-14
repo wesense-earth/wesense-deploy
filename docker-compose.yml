@@ -231,7 +231,7 @@ services:
   # profile, skips gracefully in contributor profile (connects to remote hosts).
   # ===========================================================================
   ingester-meshtastic:
-    image: ${INGESTER_MESHTASTIC_IMAGE:-ghcr.io/wesense-earth/wesense-ingester-meshtastic:latest}
+    image: ${INGESTER_MESHTASTIC_IMAGE:-ghcr.io/wesense-earth/wesense-ingester-meshtastic:${IMAGE_TAG:-latest}}
     container_name: wesense-ingester-meshtastic
     profiles: ["contributor", "station"]
     depends_on:
@@ -309,7 +309,7 @@ services:
   # specific regions.
   # ===========================================================================
   ingester-meshtastic-downlink:
-    image: ${INGESTER_MESHTASTIC_IMAGE:-ghcr.io/wesense-earth/wesense-ingester-meshtastic:latest}
+    image: ${INGESTER_MESHTASTIC_IMAGE:-ghcr.io/wesense-earth/wesense-ingester-meshtastic:${IMAGE_TAG:-latest}}
     container_name: wesense-meshtastic-downlink
     profiles: ["downlink"]
     depends_on:
@@ -370,7 +370,7 @@ services:
   # Optionally runs TTN webhook HTTP server (TTN_WEBHOOK_ENABLED=true)
   # ===========================================================================
   ingester-wesense:
-    image: ${INGESTER_WESENSE_IMAGE:-ghcr.io/wesense-earth/wesense-ingester-wesense:latest}
+    image: ${INGESTER_WESENSE_IMAGE:-ghcr.io/wesense-earth/wesense-ingester-wesense:${IMAGE_TAG:-latest}}
     container_name: wesense-ingester-wesense
     profiles: ["contributor", "station"]
     depends_on:
@@ -450,7 +450,7 @@ services:
   # Will exit cleanly if config is missing (restart: on-failure prevents crash loops).
   # ===========================================================================
   ingester-homeassistant:
-    image: ${INGESTER_HA_IMAGE:-ghcr.io/wesense-earth/wesense-ingester-homeassistant:latest}
+    image: ${INGESTER_HA_IMAGE:-ghcr.io/wesense-earth/wesense-ingester-homeassistant:${IMAGE_TAG:-latest}}
     container_name: wesense-ingester-homeassistant
     profiles: ["contributor", "station"]
     depends_on:
@@ -500,7 +500,7 @@ services:
   # which handles TLS/letsencrypt — Respiro itself serves plain HTTP.
   # ===========================================================================
   respiro:
-    image: ${RESPIRO_IMAGE:-ghcr.io/wesense-earth/wesense-respiro:latest}
+    image: ${RESPIRO_IMAGE:-ghcr.io/wesense-earth/wesense-respiro:${IMAGE_TAG:-latest}}
     container_name: wesense-respiro
     profiles: ["station", "observer"]
     ports:
@@ -550,7 +550,7 @@ services:
   # schedule (default: every 12 hours). Uses Open-Meteo API for weather data.
   # ===========================================================================
   deployment-classifier:
-    image: ${CLASSIFIER_IMAGE:-ghcr.io/wesense-earth/wesense-deployment-classifier:latest}
+    image: ${CLASSIFIER_IMAGE:-ghcr.io/wesense-earth/wesense-deployment-classifier:${IMAGE_TAG:-latest}}
     container_name: wesense-deployment-classifier
     profiles: ["station"]
     depends_on:
@@ -590,7 +590,7 @@ services:
   # HTTP API (5200) is internal to Docker network only.
   # ===========================================================================
   wesense-orbitdb:
-    image: ${ORBITDB_IMAGE:-ghcr.io/wesense-earth/wesense-orbitdb:latest}
+    image: ${ORBITDB_IMAGE:-ghcr.io/wesense-earth/wesense-orbitdb:${IMAGE_TAG:-latest}}
     container_name: wesense-orbitdb
     profiles: ["station", "observer"]
     volumes:
@@ -619,7 +619,7 @@ services:
   # receiving data from other stations; on observer it's the sole data source.
   # ===========================================================================
   zenoh-bridge:
-    image: ${ZENOH_BRIDGE_IMAGE:-ghcr.io/wesense-earth/wesense-zenoh-bridge:latest}
+    image: ${ZENOH_BRIDGE_IMAGE:-ghcr.io/wesense-earth/wesense-zenoh-bridge:${IMAGE_TAG:-latest}}
     container_name: wesense-zenoh-bridge
     profiles: ["station", "observer"]
     depends_on:
@@ -679,7 +679,7 @@ services:
   # Respiro calls these endpoints to show P2P data.
   # ===========================================================================
   zenoh-api:
-    image: ${ZENOH_API_IMAGE:-ghcr.io/wesense-earth/wesense-zenoh-api:latest}
+    image: ${ZENOH_API_IMAGE:-ghcr.io/wesense-earth/wesense-zenoh-api:${IMAGE_TAG:-latest}}
     container_name: wesense-zenoh-api
     profiles: ["station", "observer"]
     depends_on:
